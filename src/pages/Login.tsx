@@ -12,7 +12,6 @@ export default function Login() {
   
   // Staff form
   const [staffName, setStaffName] = useState('');
-  const [staffPassword, setStaffPassword] = useState('');
   
   // Admin form
   const [adminPasscode, setAdminPasscode] = useState('');
@@ -35,7 +34,8 @@ export default function Login() {
     } else if (mode === 'staff') {
       // Convert staff name to a pseudo-email (e.g. "John Doe" -> "johndoe@teammanager.com")
       loginEmail = `${staffName.toLowerCase().replace(/\s+/g, '')}@teammanager.com`;
-      loginPassword = staffPassword;
+      // Use a universal hidden password so staff only need to enter their name
+      loginPassword = 'defaultstaff123';
     }
 
     try {
@@ -101,7 +101,7 @@ export default function Login() {
               onClick={() => setMode('staff')}
             >
               <User className="w-5 h-5 mr-2" />
-              Staff Login
+              Login
             </Button>
           </CardContent>
         ) : (
@@ -116,7 +116,7 @@ export default function Login() {
               {mode === 'staff' && (
                 <div className="space-y-2 animate-in slide-in-from-right-4 duration-300">
                   <label className="text-sm font-medium leading-none" htmlFor="staffName">
-                    Staff Name
+                    Full Name
                   </label>
                   <div className="relative">
                     <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -127,21 +127,6 @@ export default function Login() {
                       className="pl-9"
                       value={staffName}
                       onChange={(e) => setStaffName(e.target.value)}
-                      required 
-                      disabled={loading}
-                    />
-                  </div>
-                  
-                  <div className="pt-2 space-y-2">
-                    <label className="text-sm font-medium leading-none" htmlFor="staffPassword">
-                      Password
-                    </label>
-                    <Input 
-                      id="staffPassword" 
-                      type="password" 
-                      placeholder="••••••••"
-                      value={staffPassword}
-                      onChange={(e) => setStaffPassword(e.target.value)}
                       required 
                       disabled={loading}
                     />
@@ -172,7 +157,7 @@ export default function Login() {
             </CardContent>
             <CardFooter>
               <Button className="w-full font-semibold" type="submit" disabled={loading}>
-                {loading ? 'Authenticating...' : (mode === 'staff' ? 'Log In to Staff Portal' : 'Enter Dashboard')}
+                {loading ? 'Authenticating...' : (mode === 'staff' ? 'Log In' : 'Enter Dashboard')}
               </Button>
             </CardFooter>
           </form>
