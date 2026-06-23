@@ -3,12 +3,20 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Store, User } from 'lucide-react';
+import { Store, User, Shield, ArrowLeft } from 'lucide-react';
+
+type LoginMode = 'landing' | 'admin' | 'staff';
 
 export default function Login() {
-  const [isStaff, setIsStaff] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [mode, setMode] = useState<LoginMode>('landing');
+  
+  // Staff form
+  const [staffName, setStaffName] = useState('');
+  const [staffPassword, setStaffPassword] = useState('');
+  
+  // Admin form
+  const [adminPasscode, setAdminPasscode] = useState('');
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,19 +25,28 @@ export default function Login() {
     setLoading(true);
     setError(null);
 
-    // For Admin, we hide the email field from the UI and use a fixed email under the hood
-    // to make the login process simple (just a passcode).
-    const loginEmail = isStaff ? email : 'admin@teammanager.com';
+    let loginEmail = '';
+    let loginPassword = '';
+
+    if (mode === 'admin') {
+      // Under the hood, anyone with the passcode logs into this shared admin account.
+      loginEmail = 'admin@teammanager.com';
+      loginPassword = adminPasscode;
+    } else if (mode === 'staff') {
+      // Convert staff name to a pseudo-email (e.g. "John Doe" -> "johndoe@teammanager.com")
+      loginEmail = `${staffName.toLowerCase().replace(/\s+/g, '')}@teammanager.com`;
+      loginPassword = staffPassword;
+    }
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email: loginEmail,
-        password,
+        password: loginPassword,
       });
 
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
-          throw new Error('Incorrect passcode or email');
+          throw new Error('Incorrect details provided. Please try again.');
         }
         throw error;
       }
@@ -43,84 +60,123 @@ export default function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md shadow-lg border-primary/10">
-        <CardHeader className="space-y-1 flex flex-col items-center text-center">
-          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+        <CardHeader className="space-y-1 flex flex-col items-center text-center relative">
+          {mode !== 'landing' && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="absolute left-4 top-4"
+              onClick={() => { setMode('landing'); setError(null); }}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          )}
+          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4 mt-2">
             <Store className="w-6 h-6 text-primary" />
           </div>
           <CardTitle className="text-2xl font-bold tracking-tight">Team Manager</CardTitle>
           <CardDescription>
-            {isStaff ? 'Enter your staff details to access your dashboard' : 'Enter your admin passcode to continue'}
+            {mode === 'landing' && 'Select how you want to log in'}
+            {mode === 'admin' && 'Enter your admin passcode to continue'}
+            {mode === 'staff' && 'Enter your staff details'}
           </CardDescription>
         </CardHeader>
-        <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4">
-            
-            {/* Toggle between Admin and Staff */}
-            <div className="flex bg-muted p-1 rounded-lg">
-              <button
-                type="button"
-                onClick={() => { setIsStaff(false); setError(null); }}
-                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${!isStaff ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+        
+        {mode === 'landing' ? (
+          <CardContent className="space-y-4 flex flex-col pt-4">
+            <div className="flex justify-center mb-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-muted-foreground hover:text-primary transition-colors"
+                onClick={() => setMode('admin')}
               >
-                Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => { setIsStaff(true); setError(null); }}
-                className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${isStaff ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
-              >
-                Staff
-              </button>
+                <Shield className="w-4 h-4 mr-2" />
+                Login as Admin
+              </Button>
             </div>
-
-            {error && (
-              <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md border border-destructive/20 text-center font-medium animate-in fade-in zoom-in duration-200">
-                {error}
-              </div>
-            )}
-            
-            {isStaff && (
-              <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
-                <label className="text-sm font-medium leading-none" htmlFor="email">
-                  Email
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    placeholder="name@example.com" 
-                    className="pl-9"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required={isStaff} 
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none" htmlFor="password">
-                {isStaff ? 'Password' : 'Admin Passcode'}
-              </label>
-              <Input 
-                id="password" 
-                type="password" 
-                placeholder={isStaff ? "••••••••" : "e.g. admin123"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required 
-                disabled={loading}
-              />
-            </div>
-          </CardContent>
-          <CardFooter>
-            <Button className="w-full font-semibold" type="submit" disabled={loading}>
-              {loading ? 'Authenticating...' : (isStaff ? 'Staff Login' : 'Enter Dashboard')}
+            <Button 
+              size="lg" 
+              className="w-full h-14 text-lg font-semibold"
+              onClick={() => setMode('staff')}
+            >
+              <User className="w-5 h-5 mr-2" />
+              Staff Login
             </Button>
-          </CardFooter>
-        </form>
+          </CardContent>
+        ) : (
+          <form onSubmit={handleLogin}>
+            <CardContent className="space-y-4">
+              {error && (
+                <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md border border-destructive/20 text-center font-medium animate-in fade-in zoom-in duration-200">
+                  {error}
+                </div>
+              )}
+              
+              {mode === 'staff' && (
+                <div className="space-y-2 animate-in slide-in-from-right-4 duration-300">
+                  <label className="text-sm font-medium leading-none" htmlFor="staffName">
+                    Staff Name
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      id="staffName" 
+                      type="text" 
+                      placeholder="e.g. John Doe" 
+                      className="pl-9"
+                      value={staffName}
+                      onChange={(e) => setStaffName(e.target.value)}
+                      required 
+                      disabled={loading}
+                    />
+                  </div>
+                  
+                  <div className="pt-2 space-y-2">
+                    <label className="text-sm font-medium leading-none" htmlFor="staffPassword">
+                      Password
+                    </label>
+                    <Input 
+                      id="staffPassword" 
+                      type="password" 
+                      placeholder="••••••••"
+                      value={staffPassword}
+                      onChange={(e) => setStaffPassword(e.target.value)}
+                      required 
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {mode === 'admin' && (
+                <div className="space-y-2 animate-in slide-in-from-left-4 duration-300">
+                  <label className="text-sm font-medium leading-none" htmlFor="adminPasscode">
+                    Admin Passcode
+                  </label>
+                  <div className="relative">
+                    <Shield className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      id="adminPasscode" 
+                      type="password" 
+                      placeholder="e.g. admin123"
+                      className="pl-9"
+                      value={adminPasscode}
+                      onChange={(e) => setAdminPasscode(e.target.value)}
+                      required 
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Button className="w-full font-semibold" type="submit" disabled={loading}>
+                {loading ? 'Authenticating...' : (mode === 'staff' ? 'Log In to Staff Portal' : 'Enter Dashboard')}
+              </Button>
+            </CardFooter>
+          </form>
+        )}
       </Card>
     </div>
   );
