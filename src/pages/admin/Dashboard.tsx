@@ -1,44 +1,50 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
+import { NextTeamBanner } from '@/components/shared/NextTeamBanner';
+import { TeamBoard } from '@/components/admin/TeamBoard';
+import { StaffStatusBoard } from '@/components/admin/StaffStatusBoard';
+import { AddCustomerModal } from '@/components/admin/AddCustomerModal';
+import { HelpAlertsPanel } from '@/components/admin/HelpAlertsPanel';
+import { Button } from '@/components/ui/button';
+import { PlusCircle } from 'lucide-react';
 
 export default function AdminDashboard() {
+  const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
+
   return (
     <div className="space-y-6">
-      {/* Banner */}
-      <div className="bg-primary text-primary-foreground p-6 rounded-xl shadow-lg flex items-center justify-center animate-in fade-in slide-in-from-top-4 duration-500">
-        <h2 className="text-2xl sm:text-4xl font-black tracking-widest uppercase">
-          ⬡ NEXT CUSTOMER → TEAM 1
-        </h2>
+      {/* Top action row */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex-1">
+          <NextTeamBanner />
+        </div>
+        <Button 
+          onClick={() => setIsAddCustomerOpen(true)}
+          size="lg"
+          className="h-14 md:w-auto w-full text-lg shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+        >
+          <PlusCircle className="w-6 h-6 mr-2" />
+          New Customer
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold tracking-tight">Teams & Queue</h3>
-          </div>
-          {/* Teams Grid placeholder */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader className="bg-muted/50 pb-4">
-                <CardTitle>Team 1</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4 min-h-[200px]">
-                <p className="text-sm text-muted-foreground text-center mt-8">No active customers</p>
-              </CardContent>
-            </Card>
-          </div>
+      {/* Main Boards */}
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        {/* Left side: Teams (takes 3 columns on large screens) */}
+        <div className="xl:col-span-3">
+          <TeamBoard />
         </div>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Staff Status</CardTitle>
-            </CardHeader>
-            <CardContent>
-               <p className="text-sm text-muted-foreground text-center">No staff online</p>
-            </CardContent>
-          </Card>
+        
+        {/* Right side: Staff Status (takes 1 column) */}
+        <div className="xl:col-span-1">
+          <StaffStatusBoard />
         </div>
       </div>
+
+      <AddCustomerModal 
+        isOpen={isAddCustomerOpen} 
+        onClose={() => setIsAddCustomerOpen(false)} 
+      />
+      <HelpAlertsPanel />
     </div>
   );
 }

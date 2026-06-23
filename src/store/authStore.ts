@@ -19,7 +19,7 @@ interface AuthState {
   setStaffProfile: (profile: Profile) => void;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   session: null,
   user: null,
   profile: null,
