@@ -34,7 +34,7 @@ export function StaffStatusBoard() {
   const getStaffTeam = (staffId: string) => {
     if (!teams) return null;
     for (const t of teams) {
-      if (t.team_members.some((m: any) => m.staff_id === staffId)) {
+      if (t.team_members && t.team_members.some((m: any) => m.staff_id === staffId)) {
         return t.name || `Team ${t.team_number}`;
       }
     }

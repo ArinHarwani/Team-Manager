@@ -32,7 +32,7 @@ function TeamCard({ team, customers, staffStatuses }: TeamCardProps) {
         {/* Staff List */}
         <div className="bg-white p-3 space-y-2 flex-1">
           <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Members</h4>
-          {team.team_members.map((tm: any) => {
+          {team.team_members && team.team_members.map((tm: any) => {
             const profile = tm.profiles;
             const statusObj = staffStatuses.find(s => s.staff_id === tm.staff_id);
             const status = statusObj?.status || 'offline';
@@ -44,7 +44,7 @@ function TeamCard({ team, customers, staffStatuses }: TeamCardProps) {
               </div>
             );
           })}
-          {team.team_members.length === 0 && (
+          {(!team.team_members || team.team_members.length === 0) && (
             <div className="text-xs text-muted-foreground italic">No members assigned</div>
           )}
         </div>

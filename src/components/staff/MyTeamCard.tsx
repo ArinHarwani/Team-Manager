@@ -18,7 +18,7 @@ export function MyTeamCard() {
   // Find my team
   let myTeam = null;
   if (teams && profile) {
-    myTeam = teams.find(t => t.team_members.some((m: any) => m.staff_id === profile.id));
+    myTeam = teams.find(t => t.team_members && t.team_members.some((m: any) => m.staff_id === profile.id));
   }
 
   if (!myTeam) {
@@ -54,7 +54,7 @@ export function MyTeamCard() {
           <div className="p-4 bg-white">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Team Members</h4>
             <div className="space-y-3">
-              {myTeam.team_members.map((tm: any) => {
+              {myTeam.team_members && myTeam.team_members.map((tm: any) => {
                 const isMe = tm.staff_id === profile?.id;
                 const statusObj = staffStatuses?.find(s => s.staff_id === tm.staff_id);
                 const status = statusObj?.status || 'offline';

@@ -20,7 +20,7 @@ export function HelpButton() {
   let myTeamId = null;
   if (teams && profile) {
     for (const t of teams) {
-      if (t.team_members.some((m: any) => m.staff_id === profile.id)) {
+      if (t.team_members && t.team_members.some((m: any) => m.staff_id === profile.id)) {
         myTeamId = t.id;
         break;
       }
