@@ -39,15 +39,27 @@ export default function Login() {
     }
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      let { data, error } = await supabase.auth.signInWithPassword({
         email: loginEmail,
         password: loginPassword,
       });
 
-      if (error) {
-        if (error.message.includes('Invalid login credentials')) {
-          throw new Error('Incorrect details provided. Please try again.');
+      // If they don't exist, let's automatically create their account for them!
+      if (error && mode === 'staff' && error.message.includes('Invalid login credentials')) {
+        const signUpResult = await supabase.auth.signUp({
+          email: loginEmail,
+          password: loginPassword,
+        });
+
+        if (signUpResult.error) throw signUpResult.error;
+        
+        // Ensure profile is created
+        if (signUpResult.data.user) {
+          await supabase.from('profiles').insert([
+            { id: signUpResult.data.user.id, name: staffName, role: 'staff', is_active: true }
+          ]);
         }
+      } else if (error) {
         throw error;
       }
     } catch (err: any) {
