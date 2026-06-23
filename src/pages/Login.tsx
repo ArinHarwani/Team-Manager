@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,13 +10,8 @@ type LoginMode = 'landing' | 'admin' | 'staff';
 
 export default function Login() {
   const [mode, setMode] = useState<LoginMode>('landing');
-  
-  // Staff form
   const [staffName, setStaffName] = useState('');
-  
-  // Admin form
   const [adminPasscode, setAdminPasscode] = useState('');
-  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,49 +20,59 @@ export default function Login() {
     setLoading(true);
     setError(null);
 
-    let loginEmail = '';
-    let loginPassword = '';
-
-    if (mode === 'admin') {
-      // Under the hood, anyone with the passcode logs into this shared admin account.
-      loginEmail = 'admin@teammanager.com';
-      loginPassword = adminPasscode;
-    } else if (mode === 'staff') {
-      // Convert staff name to a pseudo-email (e.g. "John Doe" -> "johndoe@teammanager.com")
-      loginEmail = `${staffName.toLowerCase().replace(/\s+/g, '')}@teammanager.com`;
-      // Use a universal hidden password so staff only need to enter their name
-      loginPassword = 'defaultstaff123';
-    }
-
     try {
-      let { data, error } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
-        password: loginPassword,
-      });
-
-      // If they don't exist, let's automatically create their account for them!
-      if (error && mode === 'staff' && error.message.includes('Invalid login credentials')) {
-        const signUpResult = await supabase.auth.signUp({
-          email: loginEmail,
-          password: loginPassword,
+      if (mode === 'admin') {
+        // ADMIN LOGIN: Still securely uses Supabase Auth
+        const { error } = await supabase.auth.signInWithPassword({
+          email: 'admin@teammanager.com',
+          password: adminPasscode,
         });
 
-        if (signUpResult.error) throw signUpResult.error;
-        
-        // Ensure profile is created
-        if (signUpResult.data.user) {
-          await supabase.from('profiles').insert([
-            { id: signUpResult.data.user.id, name: staffName, role: 'staff', is_active: true }
-          ]);
-          // Redirect immediately to force the auth store to recognize the new profile
-          window.location.href = '/staff';
-          return; // Stop execution
+        if (error) {
+          if (error.message.includes('Invalid login credentials')) {
+            throw new Error('Incorrect passcode provided.');
+          }
+          throw error;
         }
-      } else if (error) {
-        throw error;
+      } else if (mode === 'staff') {
+        // STAFF LOGIN: Completely bypasses Supabase Auth.
+        // It checks if the name exists. If yes, it logs in. If no, it inserts.
+        const trimmedName = staffName.trim();
+        
+        if (!trimmedName) throw new Error("Please enter a valid name");
+
+        // 1. Check if profile exists
+        const { data: existingProfiles, error: fetchError } = await supabase
+          .from('profiles')
+          .select('*')
+          .ilike('name', trimmedName)
+          .eq('role', 'staff');
+          
+        if (fetchError) throw fetchError;
+        
+        if (existingProfiles && existingProfiles.length > 0) {
+          // Existing staff member found
+          useAuthStore.getState().setStaffProfile(existingProfiles[0]);
+          window.location.href = '/staff';
+          return;
+        } else {
+          // 2. Not found, automatically insert a new staff profile
+          // Since we removed the foreign key in SQL, this doesn't require an auth.users row!
+          const { data: newProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert([{ name: trimmedName, role: 'staff', is_active: true }])
+            .select()
+            .single();
+            
+          if (insertError) throw insertError;
+          
+          useAuthStore.getState().setStaffProfile(newProfile);
+          window.location.href = '/staff';
+          return;
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'Invalid credentials');
+      setError(err.message || 'An error occurred during login.');
     } finally {
       setLoading(false);
     }
