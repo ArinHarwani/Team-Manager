@@ -12,3 +12,6 @@ ALTER TABLE override_logs DISABLE ROW LEVEL SECURITY;
 
 -- Drop the foreign key constraint that requires a profile to have an auth.users record
 ALTER TABLE profiles DROP CONSTRAINT profiles_id_fkey;
+
+-- Allow the profiles table to automatically generate an ID when a staff member logs in
+ALTER TABLE profiles ALTER COLUMN id SET DEFAULT gen_random_uuid();
