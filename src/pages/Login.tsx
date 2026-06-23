@@ -58,6 +58,9 @@ export default function Login() {
           await supabase.from('profiles').insert([
             { id: signUpResult.data.user.id, name: staffName, role: 'staff', is_active: true }
           ]);
+          // Redirect immediately to force the auth store to recognize the new profile
+          window.location.href = '/staff';
+          return; // Stop execution
         }
       } else if (error) {
         throw error;
