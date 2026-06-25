@@ -61,21 +61,20 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     // Listen for Auth changes (for Admin login/logout)
-    supabase.auth.onAuthStateChange(async (_event, session) => {
-      // Ignore if we are logged in as a local staff member
-      if (localStorage.getItem('staff_profile')) return;
-
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      // If they just signed in, we need to fetch their profile before they are fully loaded.
+      if (event === 'SIGNED_IN') set({ isLoading: true });
+      
       set({ session, user: session?.user || null });
-      if (session?.user) {
+      if (session) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .single();
-        
-        set({ profile });
+        set({ profile: profile || null, isLoading: false });
       } else {
-        set({ profile: null });
+        set({ profile: null, isLoading: false });
       }
     });
   },

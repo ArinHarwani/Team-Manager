@@ -19,9 +19,15 @@ const ProtectedRoute = ({ children, allowedRole }: { children: React.ReactNode, 
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRole && profile?.role !== allowedRole) {
+  // If session exists but profile isn't loaded yet, show loading
+  // to prevent an infinite redirect loop.
+  if (!profile) {
+    return <Loading />;
+  }
+
+  if (allowedRole && profile.role !== allowedRole) {
     // Redirect to correct dashboard based on role
-    return <Navigate to={profile?.role === 'admin' ? '/admin' : '/staff'} replace />;
+    return <Navigate to={profile.role === 'admin' ? '/admin' : '/staff'} replace />;
   }
 
   return <>{children}</>;
