@@ -4,9 +4,7 @@ import { supabase } from '@/lib/supabase';
 
 export function useRealtimeCustomers() {
   const queryClient = useQueryClient();
-
-  // Helper to get today's date string in local timezone
-  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+  const today = new Date().toLocaleDateString('en-CA');
 
   const query = useQuery({
     queryKey: ['customers', today],
@@ -15,43 +13,25 @@ export function useRealtimeCustomers() {
         .from('customers')
         .select(`
           *,
-          handler:handler_id (id, name, role),
-          customer_support (
-            staff_id,
-            profiles (id, name)
-          )
+          daily_teams (id, name, team_number, group_id, team_groups(id, name, color)),
+          team_groups (id, name, color)
         `)
         .eq('date', today)
-        .order('created_at', { ascending: true });
-      
+        .order('assigned_at', { ascending: false });
       if (error) throw error;
-      return data;
+      return data || [];
     }
   });
 
   useEffect(() => {
+    const channelId = `customers_changes_${Math.random().toString(36).substring(2, 9)}`;
     const channel = supabase
-      .channel('customers_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'customers' },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['customers', today] });
-        }
-      )
-      // Also subscribe to customer support changes since they are nested
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'customer_support' },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['customers', today] });
-        }
-      )
+      .channel(channelId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['customers', today] });
+      })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [queryClient, today]);
 
   return query;

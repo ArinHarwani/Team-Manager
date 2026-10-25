@@ -4,9 +4,10 @@ import { supabase } from '@/lib/supabase';
 
 export function useRealtimeHelpAlerts() {
   const queryClient = useQueryClient();
+  const today = new Date().toLocaleDateString('en-CA');
 
   const query = useQuery({
-    queryKey: ['help_alerts'],
+    queryKey: ['help_requests', today],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('help_requests')
@@ -16,30 +17,23 @@ export function useRealtimeHelpAlerts() {
           daily_teams:team_id (id, name),
           customers:customer_id (id, code)
         `)
-        .eq('resolved', false)
-        .order('created_at', { ascending: false });
-      
+        .order('created_at', { ascending: false })
+        .limit(100);
       if (error) throw error;
-      return data;
+      return data || [];
     }
   });
 
   useEffect(() => {
+    const channelId = `help_alerts_${Math.random().toString(36).substring(2, 9)}`;
     const channel = supabase
-      .channel('help_alerts_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'help_requests' },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['help_alerts'] });
-        }
-      )
+      .channel(channelId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'help_requests' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['help_requests', today] });
+      })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient, today]);
 
   return query;
 }

@@ -6,27 +6,26 @@ import Login from './pages/Login';
 import AdminLayout from './components/layout/AdminLayout';
 import StaffLayout from './components/layout/StaffLayout';
 import AdminDashboard from './pages/admin/Dashboard';
+import AdminTeams from './pages/admin/Teams';
 import StaffDashboard from './pages/staff/Dashboard';
 
-const Loading = () => <div className="flex h-screen items-center justify-center">Loading...</div>;
+const Loading = () => (
+  <div className="flex h-screen items-center justify-center bg-slate-50">
+    <div className="text-center space-y-3">
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+      <p className="text-slate-500 text-sm font-medium">Loading...</p>
+    </div>
+  </div>
+);
 
 const ProtectedRoute = ({ children, allowedRole }: { children: React.ReactNode, allowedRole?: 'admin' | 'staff' }) => {
   const { session, profile, isLoading } = useAuthStore();
 
   if (isLoading) return <Loading />;
-  
-  if (!session) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // If session exists but profile isn't loaded yet, show loading
-  // to prevent an infinite redirect loop.
-  if (!profile) {
-    return <Loading />;
-  }
+  if (!session) return <Navigate to="/login" replace />;
+  if (!profile) return <Loading />;
 
   if (allowedRole && profile.role !== allowedRole) {
-    // Redirect to correct dashboard based on role
     return <Navigate to={profile.role === 'admin' ? '/admin' : '/staff'} replace />;
   }
 
@@ -45,36 +44,36 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route 
-          path="/login" 
+        <Route
+          path="/login"
           element={
             session ? (
               <Navigate to={profile?.role === 'admin' ? '/admin' : '/staff'} replace />
             ) : (
               <Login />
             )
-          } 
+          }
         />
-        
-        <Route 
-          path="/admin" 
+
+        <Route
+          path="/admin"
           element={
             <ProtectedRoute allowedRole="admin">
               <AdminLayout />
             </ProtectedRoute>
-          } 
+          }
         >
           <Route index element={<AdminDashboard />} />
-          {/* Add other admin routes here like teams, analytics */}
+          <Route path="teams" element={<AdminTeams />} />
         </Route>
 
-        <Route 
-          path="/staff" 
+        <Route
+          path="/staff"
           element={
             <ProtectedRoute allowedRole="staff">
               <StaffLayout />
             </ProtectedRoute>
-          } 
+          }
         >
           <Route index element={<StaffDashboard />} />
         </Route>

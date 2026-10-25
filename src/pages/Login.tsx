@@ -22,18 +22,53 @@ export default function Login() {
 
     try {
       if (mode === 'admin') {
-        // ADMIN LOGIN: Still securely uses Supabase Auth
-        const { error } = await supabase.auth.signInWithPassword({
-          email: 'admin@teammanager.com',
-          password: adminPasscode,
-        });
+        // ADMIN LOGIN: Pure password verification, completely email-free!
+        const trimmedPasscode = adminPasscode.trim();
+        const validPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
 
-        if (error) {
-          if (error.message.includes('Invalid login credentials')) {
-            throw new Error('Incorrect passcode provided.');
-          }
-          throw error;
+        if (!trimmedPasscode) {
+          throw new Error('Please enter the admin password.');
         }
+
+        if (trimmedPasscode !== validPassword) {
+          throw new Error('Incorrect password provided.');
+        }
+
+        // Fetch or create admin profile in the database
+        let adminProfile: any = null;
+        try {
+          const { data: existingAdmin } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('role', 'admin')
+            .maybeSingle();
+
+          if (existingAdmin) {
+            adminProfile = existingAdmin;
+          } else {
+            const { data: newAdmin } = await supabase
+              .from('profiles')
+              .insert([{ name: 'Store Manager', role: 'admin', is_active: true }])
+              .select()
+              .maybeSingle();
+            adminProfile = newAdmin;
+          }
+        } catch (dbErr) {
+          console.warn('Database query warning:', dbErr);
+        }
+
+        if (!adminProfile) {
+          adminProfile = {
+            id: 'admin-master-profile',
+            name: 'Store Manager',
+            role: 'admin',
+            is_active: true
+          };
+        }
+
+        useAuthStore.getState().setAdminProfile(adminProfile);
+        window.location.href = '/admin';
+        return;
       } else if (mode === 'staff') {
         // STAFF LOGIN: Completely bypasses Supabase Auth.
         // It checks if the name exists. If yes, it logs in. If no, it inserts.
@@ -98,7 +133,7 @@ export default function Login() {
           <CardTitle className="text-2xl font-bold tracking-tight">Team Manager</CardTitle>
           <CardDescription>
             {mode === 'landing' && 'Select how you want to log in'}
-            {mode === 'admin' && 'Enter your admin passcode to continue'}
+            {mode === 'admin' && 'Enter your admin password to continue'}
             {mode === 'staff' && 'Enter your staff details'}
           </CardDescription>
         </CardHeader>
@@ -158,14 +193,14 @@ export default function Login() {
               {mode === 'admin' && (
                 <div className="space-y-2 animate-in slide-in-from-left-4 duration-300">
                   <label className="text-sm font-medium leading-none" htmlFor="adminPasscode">
-                    Admin Passcode
+                    Admin Password
                   </label>
                   <div className="relative">
                     <Shield className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input 
                       id="adminPasscode" 
                       type="password" 
-                      placeholder="e.g. admin123"
+                      placeholder="Enter admin password (e.g. admin123)"
                       className="pl-9"
                       value={adminPasscode}
                       onChange={(e) => setAdminPasscode(e.target.value)}

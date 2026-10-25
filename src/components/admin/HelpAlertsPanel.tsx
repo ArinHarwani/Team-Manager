@@ -1,73 +1,105 @@
-import { useRealtimeHelpAlerts } from '@/hooks/useRealtimeHelpAlerts';
 import { supabase } from '@/lib/supabase';
-import { useAuthStore } from '@/store/authStore';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { useState } from 'react';
+import { useRealtimeHelpAlerts } from '@/hooks/useRealtimeHelpAlerts';
+import { useQueryClient } from '@tanstack/react-query';
+import { Bell, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 export function HelpAlertsPanel() {
-  const { data: alerts } = useRealtimeHelpAlerts();
-  const { profile } = useAuthStore();
-  const [resolving, setResolving] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const today = new Date().toLocaleDateString('en-CA');
+  const { data: helpAlerts = [], isLoading } = useRealtimeHelpAlerts();
 
-  if (!alerts || alerts.length === 0) return null;
+  const pending = (helpAlerts as any[]).filter((h: any) => !h.resolved);
+  const resolved = (helpAlerts as any[]).filter((h: any) => h.resolved);
 
   const handleResolve = async (id: string) => {
-    setResolving(id);
-    try {
-      await supabase
-        .from('help_requests')
-        .update({ 
-          resolved: true, 
-          resolved_by: profile?.id, 
-          resolved_at: new Date().toISOString() 
-        })
-        .eq('id', id);
-    } catch (error) {
-      console.error("Failed to resolve alert", error);
-    } finally {
-      setResolving(null);
-    }
+    await supabase
+      .from('help_requests')
+      .update({ resolved: true, resolved_at: new Date().toISOString() })
+      .eq('id', id);
+    queryClient.invalidateQueries({ queryKey: ['help_requests', today] });
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-2 animate-pulse">
+        {[1, 2].map(i => <div key={i} className="h-16 bg-slate-100 rounded-xl" />)}
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed bottom-4 right-4 z-40 w-full max-w-sm space-y-3 flex flex-col items-end pointer-events-none">
-      {alerts.map(alert => (
-        <Card 
-          key={alert.id} 
-          className="w-full shadow-2xl border-destructive/50 bg-destructive/10 animate-in slide-in-from-right-8 fade-in pointer-events-auto"
-        >
-          <CardHeader className="py-3 px-4 flex flex-row items-start space-y-0 gap-3 border-b border-destructive/10 bg-white">
-            <div className="bg-destructive/10 p-2 rounded-full mt-0.5">
-              <AlertTriangle className="w-5 h-5 text-destructive" />
-            </div>
-            <div className="flex-1">
-              <CardTitle className="text-base text-destructive font-bold">Help Requested!</CardTitle>
-              <div className="text-sm font-medium mt-1 text-slate-800">
-                {alert.profiles?.name} <span className="text-slate-500 font-normal">from</span> {alert.daily_teams?.name}
-              </div>
-              {alert.customers?.code && (
-                <div className="text-xs mt-1 bg-slate-100 inline-block px-2 py-0.5 rounded text-slate-700">
-                  Customer: <span className="font-bold">{alert.customers.code}</span>
+    <div className="space-y-4">
+      {/* Pending alerts */}
+      <div>
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <Bell className="w-3.5 h-3.5 text-amber-500" />
+          Pending Alerts ({pending.length})
+        </h3>
+        {pending.length === 0 ? (
+          <div className="text-center py-8 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-700">
+            <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-60" />
+            <p className="font-semibold text-sm">All clear! No pending help requests.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pending.map((h: any) => (
+              <div
+                key={h.id}
+                className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-amber-200 flex items-center justify-center flex-shrink-0">
+                      <AlertTriangle className="w-4 h-4 text-amber-700" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm">
+                        {h.profiles?.name || 'Staff member'}
+                        {h.daily_teams && (
+                          <span className="font-normal text-slate-500"> · {h.daily_teams.name}</span>
+                        )}
+                      </p>
+                      {h.message && (
+                        <p className="text-sm text-slate-600 mt-1">{h.message}</p>
+                      )}
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        {new Date(h.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleResolve(h.id)}
+                    className="flex-shrink-0 bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-emerald-600 transition-colors flex items-center gap-1"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Resolve
+                  </button>
                 </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="p-3 bg-white flex justify-end">
-            <Button 
-              size="sm" 
-              variant="default"
-              className="bg-emerald-600 hover:bg-emerald-700 font-bold w-full sm:w-auto shadow-md"
-              onClick={() => handleResolve(alert.id)}
-              disabled={resolving === alert.id}
-            >
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              {resolving === alert.id ? 'Resolving...' : 'Mark Resolved'}
-            </Button>
-          </CardContent>
-        </Card>
-      ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Resolved alerts */}
+      {resolved.length > 0 && (
+        <div>
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+            Resolved ({resolved.length})
+          </h3>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {resolved.map((h: any) => (
+              <div key={h.id} className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex items-center justify-between text-sm opacity-60">
+                <div>
+                  <span className="font-semibold text-slate-700">{h.profiles?.name || 'Staff'}</span>
+                  {h.message && <span className="text-slate-500 ml-2 text-xs">— {h.message}</span>}
+                </div>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">✓ Resolved</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

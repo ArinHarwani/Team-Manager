@@ -13,6 +13,7 @@ export function useRealtimeTeams() {
         .from('daily_teams')
         .select(`
           *,
+          team_groups (id, name, color, sort_order),
           team_members (
             id,
             staff_id,
@@ -20,6 +21,8 @@ export function useRealtimeTeams() {
           )
         `)
         .eq('date', today)
+        .order('group_id', { ascending: true, nullsFirst: false })
+        .order('sort_order', { ascending: true })
         .order('team_number', { ascending: true });
       
       if (error) throw error;
@@ -28,27 +31,18 @@ export function useRealtimeTeams() {
   });
 
   useEffect(() => {
+    const channelId = `teams_changes_${Math.random().toString(36).substring(2, 9)}`;
     const channel = supabase
-      .channel('teams_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'daily_teams' },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['daily_teams', today] });
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'team_members' },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['daily_teams', today] });
-        }
-      )
+      .channel(channelId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_teams' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['daily_teams', today] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['daily_teams', today] });
+      })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [queryClient, today]);
 
   return query;
