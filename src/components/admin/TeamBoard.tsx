@@ -1,10 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useRealtimeTeams } from '@/hooks/useRealtimeTeams';
 import { useRealtimeCustomers } from '@/hooks/useRealtimeCustomers';
 import { useRealtimeGroups } from '@/hooks/useRealtimeGroups';
 import { useGroupAllocationState } from '@/hooks/useRealtimeAllocation';
 import { useRealtimeStaffStatus } from '@/hooks/useRealtimeStaffStatus';
-import { OutcomeModal } from './OutcomeModal';
 
 function getStatusStyle(status: string) {
   switch (status) {
@@ -34,8 +33,6 @@ export function TeamBoard() {
   const { data: customers = [] } = useRealtimeCustomers();
   const { data: allocationStates = [] } = useGroupAllocationState();
   const { data: staffStatuses = [] } = useRealtimeStaffStatus();
-
-  const [outcomeCustomer, setOutcomeCustomer] = useState<any | null>(null);
 
   // Build grouped structure
   const groupedTeams = useMemo(() => {
@@ -132,26 +129,17 @@ export function TeamBoard() {
               {activeCustomers.map((c: any) => (
                 <div
                   key={c.id}
-                  className="flex items-center justify-between bg-white border rounded-xl px-2.5 py-2 group"
+                  className="flex items-center justify-between bg-white border rounded-xl px-2.5 py-2"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="font-black text-sm tracking-wider text-slate-900">{c.code}</span>
                     {c.notes && (
-                      <span className="text-[10px] text-slate-400 truncate max-w-[60px]">{c.notes}</span>
+                      <span className="text-[10px] text-slate-400 truncate max-w-[80px]">{c.notes}</span>
                     )}
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${getStatusStyle(c.status)}`}>
-                      {getStatusLabel(c.status)}
-                    </span>
                   </div>
-
-                  {/* Close / Outcome button */}
-                  <button
-                    onClick={() => setOutcomeCustomer(c)}
-                    className="flex-shrink-0 ml-2 text-[10px] font-bold px-2.5 py-1 rounded-lg bg-slate-800 text-white hover:bg-slate-900 transition-all hover:scale-105 opacity-70 group-hover:opacity-100"
-                    title="Mark outcome and free team"
-                  >
-                    Close ▶
-                  </button>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${getStatusStyle(c.status)}`}>
+                    {getStatusLabel(c.status)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -178,8 +166,7 @@ export function TeamBoard() {
   }
 
   return (
-    <>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Groups */}
         {(groups as any[]).map((group: any) => {
           const groupTeams = (groupedTeams.grouped[group.id] || [])
@@ -223,14 +210,5 @@ export function TeamBoard() {
           </div>
         )}
       </div>
-
-      {/* Outcome modal — rendered at root level so it's above everything */}
-      {outcomeCustomer && (
-        <OutcomeModal
-          customer={outcomeCustomer}
-          onClose={() => setOutcomeCustomer(null)}
-        />
-      )}
-    </>
-  );
-}
+    );
+  }

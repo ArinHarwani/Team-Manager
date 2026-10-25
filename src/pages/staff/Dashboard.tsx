@@ -7,7 +7,8 @@ import { useGroupAllocationState } from '@/hooks/useRealtimeAllocation';
 import { useRealtimeHelpAlerts } from '@/hooks/useRealtimeHelpAlerts';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
-import { LayoutGrid, History, Bell, LogOut } from 'lucide-react';
+import { LayoutGrid, History, Bell, LogOut, CheckCircle2 } from 'lucide-react';
+import { OutcomeModal } from '@/components/admin/OutcomeModal';
 import { format } from 'date-fns';
 
 type Tab = 'teams' | 'history' | 'help';
@@ -39,6 +40,7 @@ export default function StaffDashboard() {
   const [helpMessage, setHelpMessage] = useState('');
   const [helpSent, setHelpSent] = useState(false);
   const [helpSending, setHelpSending] = useState(false);
+  const [outcomeCustomer, setOutcomeCustomer] = useState<any | null>(null);
 
   const { data: groups = [] } = useRealtimeGroups();
   const { data: teams = [] } = useRealtimeTeams();
@@ -53,6 +55,14 @@ export default function StaffDashboard() {
     ),
     [teams, profile]
   );
+
+  // Active customers assigned to my team
+  const myActiveCustomers = useMemo(() => {
+    if (!myTeam) return [];
+    return (customers as any[]).filter((c: any) =>
+      c.team_id === myTeam.id && ['waiting', 'attending'].includes(c.status)
+    );
+  }, [customers, myTeam]);
 
   // Grouped structure
   const groupedTeams = useMemo(() => {
@@ -161,6 +171,48 @@ export default function StaffDashboard() {
       {/* Content */}
       <div className="max-w-2xl mx-auto p-4 pb-24 space-y-4">
 
+        {/* ── MY ACTIVE CUSTOMER ATTENDING BANNER ── */}
+        {myActiveCustomers.length > 0 && (
+          <div className="space-y-3">
+            {myActiveCustomers.map((c: any) => (
+              <div
+                key={c.id}
+                className="bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 text-white rounded-2xl p-5 shadow-xl border-2 border-indigo-400/30 animate-in fade-in slide-in-from-top-2"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black tracking-wider uppercase text-indigo-300 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Attending Customer
+                  </span>
+                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${getStatusStyle(c.status)}`}>
+                    {getStatusLabel(c.status)}
+                  </span>
+                </div>
+
+                <div className="my-3 flex items-baseline gap-3">
+                  <span className="text-4xl font-black tracking-widest text-white">{c.code}</span>
+                  {c.notes && (
+                    <span className="text-sm font-semibold text-indigo-200">({c.notes})</span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-indigo-200 border-t border-white/10 pt-2.5 mb-4">
+                  <span>Team: <strong className="text-white">{myTeam?.name}</strong></span>
+                  <span>Assigned {new Date(c.assigned_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+
+                <button
+                  onClick={() => setOutcomeCustomer(c)}
+                  className="w-full py-3.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-98 text-white font-extrabold text-sm shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 className="w-5 h-5" />
+                  Close Customer & Report Outcome (Sale / No Sale)
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* ── TEAMS TAB ── */}
         {activeTab === 'teams' && (
           <div className="space-y-5">
@@ -240,13 +292,24 @@ export default function StaffDashboard() {
 
                           {/* Customers */}
                           {activeCustomers.length > 0 && (
-                            <div className="space-y-1">
+                            <div className="space-y-1.5">
                               {activeCustomers.map((c: any) => (
-                                <div key={c.id} className="flex items-center justify-between px-2 py-1 bg-white border rounded-lg">
-                                  <span className="font-black text-sm tracking-widest">{c.code}</span>
-                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getStatusStyle(c.status)}`}>
-                                    {getStatusLabel(c.status)}
-                                  </span>
+                                <div key={c.id} className="flex items-center justify-between p-2 bg-white border rounded-xl gap-2 shadow-xs">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="font-black text-sm tracking-widest text-slate-800">{c.code}</span>
+                                    {c.notes && <span className="text-[10px] text-slate-400 truncate max-w-[80px]">{c.notes}</span>}
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${getStatusStyle(c.status)}`}>
+                                      {getStatusLabel(c.status)}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => setOutcomeCustomer(c)}
+                                    className="flex-shrink-0 text-xs font-bold px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white transition-all shadow-sm flex items-center gap-1"
+                                    title="Close customer & set team free"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    Outcome
+                                  </button>
                                 </div>
                               ))}
                             </div>
@@ -310,9 +373,23 @@ export default function StaffDashboard() {
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getStatusStyle(c.status)}`}>
                         {getStatusLabel(c.status)}
                       </span>
+                      {c.outcome_reason && (
+                        <p className="text-[10px] text-red-500 font-medium mt-0.5 max-w-[120px] truncate">
+                          {c.outcome_reason}
+                        </p>
+                      )}
                       <p className="text-[10px] text-slate-300 mt-0.5">
                         {new Date(c.assigned_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                       </p>
+                      {['waiting', 'attending'].includes(c.status) && (
+                        <button
+                          onClick={() => setOutcomeCustomer(c)}
+                          className="mt-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs flex items-center gap-1 ml-auto active:scale-95"
+                        >
+                          <CheckCircle2 className="w-3 h-3" />
+                          Outcome
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -374,6 +451,14 @@ export default function StaffDashboard() {
           </div>
         )}
       </div>
+
+      {/* Outcome modal for Staff */}
+      {outcomeCustomer && (
+        <OutcomeModal
+          customer={outcomeCustomer}
+          onClose={() => setOutcomeCustomer(null)}
+        />
+      )}
     </div>
   );
 }
